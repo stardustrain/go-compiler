@@ -156,3 +156,9 @@ func ReadUnit16(ins Instructions) uint16 {
 - ReadOperands 함수를 정의함
   - 명령어의 집합 instructions 배열을 받아서 피연산자의 byte 크기 만큼의 바이트 코드를 읽음
   - 이때, 바이트 코드를 다시 적당한 타입의 값으로 변환해서 (e.g. BigEndian -> Unit16) 배열에 넣어줌
+
+## 2일차 TIL
+### 지금까지 한 일
+- OpConstant라는 이름의 명령코드 하나를 정의
+  - 정수 리터럴을 평가하고, 해당 정수 리터럴을 상수 풀에 추가할 수 있는 기능을 추가
+- AST를 순회하는 방법을 알고 있는 작은 컴파일러를 구현
