@@ -6,6 +6,23 @@ import (
 	"fmt"
 )
 
+type Opcode byte
+
+const (
+	OpConstant Opcode = iota
+	OpAdd
+)
+
+type Definition struct {
+	Name          string
+	OperandWidths []int
+}
+
+var definition = map[Opcode]*Definition{
+	OpConstant: {"OpConstant", []int{2}},
+	OpAdd:      {"OpAdd", []int{}},
+}
+
 type Instructions []byte
 
 func (instructions Instructions) fmtInstruction(def *Definition, operands []int) string {
@@ -16,6 +33,8 @@ func (instructions Instructions) fmtInstruction(def *Definition, operands []int)
 	}
 
 	switch operandCount {
+	case 0:
+		return def.Name
 	case 1:
 		return fmt.Sprintf("%s %d", def.Name, operands[0])
 	}
@@ -23,19 +42,48 @@ func (instructions Instructions) fmtInstruction(def *Definition, operands []int)
 	return fmt.Sprintf("ERROR: unhandled operandCount for%s\n", def.Name)
 }
 
-type Opcode byte
+/*
+toString() 역할을 함
+출력: offset OpCode 연산자
+*/
+func (instructions Instructions) String() string {
+	var out bytes.Buffer
 
-const (
-	OpConstant Opcode = iota
-)
+	i := 0
+	for i < len(instructions) {
+		def, err := Lookup(instructions[i])
+		if err != nil {
+			fmt.Fprintf(&out, "ERROR: %s\n", err)
+			continue
+		}
 
-type Definition struct {
-	Name          string
-	OperandWidths []int
+		operands, offset := ReadOperands(def, instructions[i+1:])
+		fmt.Fprintf(&out, "%04d %s\n", i, instructions.fmtInstruction(def, operands))
+
+		i += 1 + offset
+	}
+
+	return out.String()
 }
 
-var definition = map[Opcode]*Definition{
-	OpConstant: {"OpConstant", []int{2}},
+func ReadOperands(def *Definition, ins Instructions) ([]int, int) {
+	operands := make([]int, len(def.OperandWidths))
+	offset := 0
+
+	for i, width := range def.OperandWidths {
+		switch width {
+		case 2:
+			operands[i] = int(ReadUnit16(ins[offset:]))
+		}
+
+		offset += width
+	}
+
+	return operands, offset
+}
+
+func ReadUnit16(ins Instructions) uint16 {
+	return binary.BigEndian.Uint16(ins)
 }
 
 func Lookup(op byte) (*Definition, error) {
@@ -77,47 +125,4 @@ func Make(op Opcode, operands ...int) []byte {
 	}
 
 	return instruction
-}
-
-/*
-toString() 역할을 함
-*/
-func (instructions Instructions) String() string {
-	var out bytes.Buffer
-
-	i := 0
-	for i < len(instructions) {
-		def, err := Lookup(instructions[i])
-		if err != nil {
-			fmt.Fprintf(&out, "ERROR: %s\n", err)
-			continue
-		}
-
-		operands, offset := ReadOperands(def, instructions[i+1:])
-		fmt.Fprintf(&out, "%04d %s\n", i, instructions.fmtInstruction(def, operands))
-
-		i += 1 + offset
-	}
-
-	return out.String()
-}
-
-func ReadOperands(def *Definition, ins Instructions) ([]int, int) {
-	operands := make([]int, len(def.OperandWidths))
-	offset := 0
-
-	for i, width := range def.OperandWidths {
-		switch width {
-		case 2:
-			operands[i] = int(ReadUnit16(ins[offset:]))
-		}
-
-		offset += width
-	}
-
-	return operands, offset
-}
-
-func ReadUnit16(ins Instructions) uint16 {
-	return binary.BigEndian.Uint16(ins)
 }

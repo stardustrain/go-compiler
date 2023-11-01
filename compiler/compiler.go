@@ -47,6 +47,11 @@ func (c *Compiler) Compile(node ast.Node) error {
 		if err != nil {
 			return err
 		}
+
+		switch node.Operator {
+		case "+":
+			c.emit(code.OpAdd)
+		}
 	case *ast.IntegerLiteral:
 		// 리터럴은 상수 표현식이므로, 값이 변하지 않아 *object.Integer를 생성
 		integer := &object.Integer{Value: node.Value}
