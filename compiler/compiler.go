@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"fmt"
 	"monkey/ast"
 	"monkey/code"
 	"monkey/object"
@@ -36,14 +37,21 @@ func (c *Compiler) Compile(node ast.Node) error {
 		if err != nil {
 			return err
 		}
+		c.emit(code.OpPop)
 	case *ast.InfixExpression:
-		// 양쪽 left, right를 컴파일
-		err := c.Compile(node.Left)
-		if err != nil {
-			return err
+		if node.Operator == "<" {
+			// 왼쪽 오른쪽 피연산자 순서가 바뀌어야 하기 때문에 컴파일 순서 자체를 바꾼다.
+			err := c.compileInfixExpressions(node.Right, node.Left)
+			if err != nil {
+				return err
+			}
+
+			c.emit(code.OpGreaterThan)
+			return nil
 		}
 
-		err = c.Compile(node.Right)
+		// 양쪽 left, right를 컴파일
+		err := c.compileInfixExpressions(node.Left, node.Right)
 		if err != nil {
 			return err
 		}
@@ -51,11 +59,31 @@ func (c *Compiler) Compile(node ast.Node) error {
 		switch node.Operator {
 		case "+":
 			c.emit(code.OpAdd)
+		case "-":
+			c.emit(code.OpSub)
+		case "*":
+			c.emit(code.OpMul)
+		case "/":
+			c.emit(code.OpDiv)
+		case "==":
+			c.emit(code.OpEqual)
+		case "!=":
+			c.emit(code.OpNotEqual)
+		case ">":
+			c.emit(code.OpGreaterThan)
+		default:
+			return fmt.Errorf("unknown operator: %s", node.Operator)
 		}
 	case *ast.IntegerLiteral:
 		// 리터럴은 상수 표현식이므로, 값이 변하지 않아 *object.Integer를 생성
 		integer := &object.Integer{Value: node.Value}
 		c.emit(code.OpConstant, c.addConstant(integer))
+	case *ast.Boolean:
+		if node.Value == true {
+			c.emit(code.OpTrue)
+		} else {
+			c.emit(code.OpFalse)
+		}
 	}
 
 	return nil
@@ -100,4 +128,14 @@ func (c *Compiler) Bytecode() *Bytecode {
 		Instructions: c.instructions,
 		Constants:    c.constants,
 	}
+}
+
+func (c *Compiler) compileInfixExpressions(nodes ...ast.Node) error {
+	for _, node := range nodes {
+		err := c.Compile(node)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
